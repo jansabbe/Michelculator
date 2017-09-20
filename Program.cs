@@ -3,6 +3,7 @@ using Xunit;
 using Xunit.Abstractions;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 namespace calculate
 {
@@ -68,15 +69,25 @@ namespace calculate
         }
     }
 
-    public class PlayedMoves
+    public class PlayedMoves : IEnumerable<IMove>
     {
         private List<IMove> _moves = new List<IMove>();
 
         public int NumberOfMoves => _moves.Count;
 
+        public void BeginWith(IMove move) 
+        {
+            _moves.Insert(0, move);
+        }
+
         public void Add(IMove move) 
         {
             _moves.Add(move);
+        }
+
+        public IEnumerator<IMove> GetEnumerator()
+        {
+            return ((IEnumerable<IMove>)_moves).GetEnumerator();
         }
 
         public int Replay(int start) 
@@ -88,21 +99,43 @@ namespace calculate
         public override string ToString() {
             return string.Join(", ", _moves);
         }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable<IMove>)_moves).GetEnumerator();
+        }
     }
 
     public static class Solver 
     {
         public static PlayedMoves Solve(int start, int goal, int maxMoves, List<IMove> possibleMoves) 
         {
-            for (int i = 0; i < 1000000000; i++)
+            if (maxMoves == 1) 
             {
-                var possibleSolution = CreatePossibleSolution(start, goal, maxMoves, possibleMoves);
-                if (possibleSolution.Replay(start) == goal) 
-                {
-                    return possibleSolution;
-                }
+                return CreateSolutionInOneStep(start, goal, possibleMoves);
             }
-            throw new Exception("dees kannanie?");
+            foreach(var possibleFirstMove in possibleMoves)
+            {
+                var afterFirstMove = possibleFirstMove.Execute(start);
+                var solutionAfterFirstMove = Solve(afterFirstMove, goal, maxMoves - 1, possibleMoves);
+                if (solutionAfterFirstMove != null) {
+                    solutionAfterFirstMove.BeginWith(possibleFirstMove);
+                    return solutionAfterFirstMove;
+                } 
+            }
+            return null;
+        }
+
+        private static PlayedMoves CreateSolutionInOneStep(int start, int goal, List<IMove> possibleMoves)
+        {
+            var solvingMove = possibleMoves.FirstOrDefault(t => t.Execute(start) == goal);
+            if (solvingMove == null) return null;
+            var result = new PlayedMoves() 
+            {
+                solvingMove
+            };
+            return result;
+
         }
 
         private static PlayedMoves CreatePossibleSolution(int start, int goal, int maxMoves, List<IMove> possibleMoves) 
@@ -132,9 +165,10 @@ namespace calculate
         [Fact]
         public void ReplayWithMultiple() 
         {
-            var playedMoves = new PlayedMoves();
-            playedMoves.Add(new Divide(3));
-            playedMoves.Add(new Add(4));
+            var playedMoves = new PlayedMoves() 
+            {
+                new Divide(3), new Add(4)
+            };
 
             Assert.Equal(7, playedMoves.Replay(9));
         }
