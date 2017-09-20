@@ -69,13 +69,13 @@ namespace calculate
         }
     }
 
-    public class PlayedMoves : IEnumerable<IMove>
+    public class PlayedMoves
     {
         private List<IMove> _moves = new List<IMove>();
 
         public int NumberOfMoves => _moves.Count;
 
-        public void BeginWith(IMove move) 
+        public void InsertAtStart(IMove move) 
         {
             _moves.Insert(0, move);
         }
@@ -83,11 +83,6 @@ namespace calculate
         public void Add(IMove move) 
         {
             _moves.Add(move);
-        }
-
-        public IEnumerator<IMove> GetEnumerator()
-        {
-            return ((IEnumerable<IMove>)_moves).GetEnumerator();
         }
 
         public int Replay(int start) 
@@ -98,11 +93,6 @@ namespace calculate
 
         public override string ToString() {
             return string.Join(", ", _moves);
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return ((IEnumerable<IMove>)_moves).GetEnumerator();
         }
     }
 
@@ -119,7 +109,7 @@ namespace calculate
                 var afterFirstMove = possibleFirstMove.Execute(start);
                 var solutionAfterFirstMove = Solve(afterFirstMove, goal, maxMoves - 1, possibleMoves);
                 if (solutionAfterFirstMove != null) {
-                    solutionAfterFirstMove.BeginWith(possibleFirstMove);
+                    solutionAfterFirstMove.InsertAtStart(possibleFirstMove);
                     return solutionAfterFirstMove;
                 } 
             }
@@ -130,25 +120,12 @@ namespace calculate
         {
             var solvingMove = possibleMoves.FirstOrDefault(t => t.Execute(start) == goal);
             if (solvingMove == null) return null;
-            var result = new PlayedMoves() 
-            {
-                solvingMove
-            };
-            return result;
-
-        }
-
-        private static PlayedMoves CreatePossibleSolution(int start, int goal, int maxMoves, List<IMove> possibleMoves) 
-        {
-            var rand = new Random();
             var result = new PlayedMoves();
-            for (int i = 0; i < maxMoves; i++) 
-            {
-                var move = possibleMoves[rand.Next(possibleMoves.Count)];
-                result.Add(move);
-            }
+            result.Add(solvingMove);
             return result;
+
         }
+
     }
 
     public class PlayedMovesTest
@@ -165,11 +142,10 @@ namespace calculate
         [Fact]
         public void ReplayWithMultiple() 
         {
-            var playedMoves = new PlayedMoves() 
-            {
-                new Divide(3), new Add(4)
-            };
-
+            var playedMoves = new PlayedMoves();
+            playedMoves.Add(new Divide(3));
+            playedMoves.Add(new Add(4));
+            
             Assert.Equal(7, playedMoves.Replay(9));
         }
     }
@@ -217,13 +193,7 @@ namespace calculate
 
     public class SolverTest
     {
-        private readonly ITestOutputHelper output;
 
-        public SolverTest(ITestOutputHelper output)
-        {
-            this.output = output;
-        }
-        
         public static IEnumerable<object[]> CanSolveWithMultipleMovesTestData()
         {
             yield return new object[] { 6, 3, 1, new List<IMove> {new Divide(2)} };
@@ -240,8 +210,6 @@ namespace calculate
             var actual = Solver.Solve(start, goal, maxMoves, possibleMoves);
             Assert.Equal(goal, actual.Replay(start));
             Assert.Equal(maxMoves, actual.NumberOfMoves);
-
-            output.WriteLine($"Van {start} naar {goal} in {maxMoves}: {actual}");
         }
     }
 }
